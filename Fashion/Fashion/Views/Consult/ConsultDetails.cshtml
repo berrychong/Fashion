@@ -1,12 +1,49 @@
 ﻿@{
     ViewBag.Title = "ConsultDetails";
     Layout = "~/Views/Shared/Top_menu.cshtml";
+    Fashion.Models.SpecialConsult_model specialConsult_model=ViewData["specialConsult_model"] as Fashion.Models.SpecialConsult_model;
+    @model Fashion.Models.SpecialConsultAnswer_model
 }
 
 <link href="~/kindeditor/themes/default/default.css" rel="stylesheet" />
 <script src="~/kindeditor/kindeditor-all-min.js"></script>
 <script src="~/kindeditor/lang/zh-CN.js"></script>
 <link href="~/Content/Pinglun_css.css" rel="stylesheet" />
+<script>
+    $(document).ready(function () {
+        if ("@Model.answerHtmlUrl" != "")
+        {
+            var htmlUrl = "@Model.answerHtmlUrl";//获取专家解答的内容的静态html页面
+            var expertAnswerHtmlContent = "expertAnswerHtmlContent";  //expertAnswerHtmlContent为展示帖子内容的div编号，等一下要把静态html里的内容填充到本div里
+            $.ajax({//通过ajax请求静态html的内容
+                async: false,
+                url: htmlUrl,
+                success: function (result) {
+                    $("#" + expertAnswerHtmlContent).html(result);
+                }
+            });
+        }
+        //////获取专家搭配的衣服
+        $.ajax({
+            url: "GetSpecialAnswerClothes",
+            data: { specialAnswerId: 52 },
+            success: function (data) {
+                var jsonData = JSON.parse(data);
+                var answerClothTemplateHtml = '  <div><a href="simpleClothUrl" title="点击查看服饰详情" target="_black"> simpleColthType</a></div>   ';//模板
+                var answerClothHtml = "";//购买衣服的html内容
+                for (I = 0; I < jsonData.length; I++) {
+                    answerClothHtml = answerClothHtml + answerClothTemplateHtml;
+                    answerClothHtml = answerClothHtml.replace("simpleClothUrl", jsonData[I].clothUrl);
+                    answerClothHtml = answerClothHtml.replace("simpleColthType", jsonData[I].clothType);
+                }
+                $("#answerClothHtml").html(answerClothHtml);
+            }
+        });
+
+
+
+    });
+</script>
 <script type="text/javascript">
     var qjbl = 0;//为qjbl++做准备
     //本函数实现当用户点击评论中的回复评论框中的评论按钮时，提交回复评论框中的内容
@@ -299,6 +336,54 @@
         var a = "yincang_op_" + postId;
         document.getElementById(a).style.display = "none";
     }
+    //本函数实现当点击评论按钮时，显示评论内容，再次点击时隐藏
+    function xs_pl(x, commentCount) {       //点击显示隐藏评论
+        var postId = x.substring(5);//获得每个帖子的编号
+        var z = "comments_kuang_" + postId;
+        var k = "pl_" + postId;
+        var g = document.getElementById(k).innerHTML;
+        flag = $("#pinglunHidden_" + postId).val(); //获取隐藏的值，1代表为已经打开，需要关闭
+        if (flag == 0)//flag为0，已经关闭，需要打开评论详情
+        {
+            //请求数据库里的帖子评论数据
+            $.ajax({
+                url: "../Topic/AjaxGetCommentData",
+                data: { postId: postId, postType: "1" },
+                success: function (data) {
+                    var jsonData = JSON.parse(data);
+                    $("#pinglunHidden_" + postId).val("1");  //设置评论详情当前状态为打开，1代表打开，0代表关闭
+                    //渲染评论内容
+                    var TheCommentCodeHtml = $("#TheCommentCode").html();//一条评论数据的html模板
+                    var TheCommentPingLunHtml = $("#TheCommentPingLun").html();//用户开始评论的html模板
+                    var CommentHtml = "";//整块评论数据的html，即包含TheCommentCodeHtml和TheCommentPingLunHtml
+                    for (II = 0; II < commentCount; II++)//II为第几条评论
+                    {
+                        CommentHtml = CommentHtml + TheCommentCodeHtml;
+                        CommentHtml = CommentHtml.replace(/simplej/g, II);
+                        CommentHtml = CommentHtml.replace("simpleCommenterUser", jsonData[II].Commenter.userName);
+                        CommentHtml = CommentHtml.replace("simpleContent", jsonData[II].postCommentContent);
+                        CommentHtml = CommentHtml.replace("simpleCommenterTouXiang", jsonData[II].Commenter.touXiangUrl);
+
+                        //CommentHtml = CommentHtml.replace("simpleDate", jsonData[0].postCommentDate);
+                        CommentHtml = CommentHtml.replace("simpleSupportCount", jsonData[II].postCommentSupportCount);
+
+                    }
+                    CommentHtml = CommentHtml + TheCommentPingLunHtml;
+                    CommentHtml = CommentHtml.replace(/simplei/g, postId);//正则表达式，/g替换全部的意思
+                    $("#comments_kuang_" + postId).html(CommentHtml);
+                    document.getElementById(k).innerHTML = "收起评论";
+                    document.getElementById(z).style.display = "block";
+
+
+                }
+            });
+        }
+        else {
+            $("#pinglunHidden_" + postId).val("0");  //设置评论详情状态为打开，1代表打开，0代表关闭
+            document.getElementById(z).style.display = "none";
+            document.getElementById(k).innerHTML = commentCount + " 条评论";
+        }
+    }
     ////本函数实现点击关注按钮时按钮显示为取消关注，再次点击时，取消关注显示又变回关注按钮
     function guanzhu(x) {
         var postId = x.substring(8);
@@ -342,53 +427,6 @@
         }
     }
     //本函数实现当点击评论按钮时，显示评论内容，再次点击时隐藏
-    function xs_pl(x) {       //点击显示隐藏评论
-        var postId = x.substring(5);//获得每个帖子的编号
-        var z = "comments_kuang_" + postId;
-        var k = "pl_" + postId;
-        var g = document.getElementById(k).innerHTML;
-        flag = $("#pinglunHidden_" + postId).val(); //获取隐藏的值，1代表为已经打开，需要关闭
-        if (flag == 0)//flag为0，已经关闭，需要打开评论详情
-        {
-            //请求数据库里的帖子评论数据
-            $.ajax({
-                url: "AjaxGetCommentData",
-                data: { postId: postId, postType: "1" },
-                success: function (data) {
-                    var jsonData = JSON.parse(data);
-                    $("#pinglunHidden_" + postId).val("1");  //设置评论详情当前状态为打开，1代表打开，0代表关闭
-                    //渲染评论内容
-                    var TheCommentCodeHtml = $("#TheCommentCode").html();//一条评论数据的html模板
-                    var TheCommentPingLunHtml = $("#TheCommentPingLun").html();//用户开始评论的html模板
-                    var CommentHtml = "";//整块评论数据的html，即包含TheCommentCodeHtml和TheCommentPingLunHtml
-                    for (II = 0; II < commentCount; II++)//II为第几条评论
-                    {
-                        CommentHtml = CommentHtml + TheCommentCodeHtml;
-                        CommentHtml = CommentHtml.replace(/simplej/g, II);
-                        CommentHtml = CommentHtml.replace("simpleCommenterUser", jsonData[II].Commenter.userName);
-                        CommentHtml = CommentHtml.replace("simpleContent", jsonData[II].postCommentContent);
-                        CommentHtml = CommentHtml.replace("simpleCommenterTouXiang", jsonData[II].Commenter.touXiangUrl);
-
-                        //CommentHtml = CommentHtml.replace("simpleDate", jsonData[0].postCommentDate);
-                        CommentHtml = CommentHtml.replace("simpleSupportCount", jsonData[II].postCommentSupportCount);
-
-                    }
-                    CommentHtml = CommentHtml + TheCommentPingLunHtml;
-                    CommentHtml = CommentHtml.replace(/simplei/g, postId);//正则表达式，/g替换全部的意思
-                    $("#comments_kuang_" + postId).html(CommentHtml);
-                    document.getElementById(k).innerHTML = "收起评论";
-                    document.getElementById(z).style.display = "block";
-
-
-                }
-            });
-        }
-        else {
-            $("#pinglunHidden_" + postId).val("0");  //设置评论详情状态为打开，1代表打开，0代表关闭
-            document.getElementById(z).style.display = "none";
-            document.getElementById(k).innerHTML = commentCount + " 条评论";
-        }
-    }
 </script>
 
 <style>
@@ -477,6 +515,10 @@
         width: 100%;
         margin: 12px 0;
     }
+    #theLinks div {
+        margin-right: 40px;
+        float: left;
+    }
 </style>
 <div class="row" style="background-color: white;height:auto;font-size:1.7em;padding-bottom:240px;">
     <div class="col-md-10 col-md-offset-1">
@@ -491,34 +533,37 @@
         <div id="Left_main" class="col-md-8" float:left;">
             <div class="LeftBackground">
                 <div id="Question">
-                    <h1 style="text-align:center;font-weight:bold;">求一套参加同学毕业典礼的衣服！</h1>
+                    <h1 style="text-align:center;font-weight:bold;">@specialConsult_model.caption</h1>
                     <div class="fgline"></div><!--分割线-->
-                    <div>场合：毕业典礼</div>
+                    <div>场合：@specialConsult_model.occasion</div>
                     <div class="fgline"></div><!--分割线-->
-                    <div style="text-indent: 2em; margin: 25px 0 25px 0;line-height:35px; ">过两天要参加同学的毕业典礼，想要搭配一套适合和同学拍毕业照的衣服。想要看起来有气质，但是不要和毕业生混淆的衣服但是也不要太突兀！！不喜欢日韩风，觉得有点大众化。喜欢欧美风霸气。但是还是专家看着配吧，希望鞋子也顺带帮我配好，怕到时候没鞋子穿。我的脚比较挑鞋子，脚有点胖，脚背高，脚长是XXcm,脚宽XXcm,希望能显脚小。</div>
+                    <div style="text-indent: 2em; margin: 25px 0 25px 0;line-height:35px; ">@specialConsult_model.detail</div>
                     <div style="width:80%;margin-left:10%;margin-bottom:15px;">
-                        <img src="~/Images/Topic-Home-1.jpg" style="width:100%;" /></div>
-                    <table class="table table-bordered" style="text-align:center;">
+                        <img src="@specialConsult_model.userPhotoUrl" style="width:100%;" /></div>
+                    <table class="table table-bordered" style="text-align:center;margin:40px 0;">
                         <caption style="text-align:center;font-weight:bold;font-size:1.5em;">体型特征</caption>
-                        <tr><td class="word-duiqi">身高：</td><td><input type="text" disabled="disabled" class="table-data" value="11" />cm</td><td class="word-duiqi">肤色：</td><td><input type="text" disabled="disabled" class="table-data" value="白皙" /></td></tr>
-                        <tr><td class="word-duiqi">体重：</td><td><input type="text" disabled="disabled" class="table-data" value="11" />cm</td><td class="word-duiqi">臀围：</td><td><input type="text" disabled="disabled" class="table-data" value="11" />cm</td></tr>
-                        <tr><td class="word-duiqi">腰围：</td><td><input type="text" disabled="disabled" class="table-data" value="11" />cm</td><td class="word-duiqi">臂围：</td><td><input type="text" disabled="disabled" class="table-data" value="22" />cm</td></tr>
-                        <tr><td class="word-duiqi">腿长：</td><td><input type="text" disabled="disabled" class="table-data" value="22" />cm</td><td class="word-duiqi">胸围：</td><td><input type="text" disabled="disabled" class="table-data" value="22" />cm</td></tr>
-                        <tr><td>大腿围：</td><td><input type="text" disabled="disabled" class="table-data" value="22" />cm</td><td>小腿围：</td><td><input type="text" disabled="disabled" class="table-data" value="22" />cm</td></tr>
+                        <tr><td class="word-duiqi">身高：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.height" />cm</td><td class="word-duiqi">肤色：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.skinColor" /></td></tr>
+                        <tr><td class="word-duiqi">体重：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.weight" />cm</td><td class="word-duiqi">臀围：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.tunWei" />cm</td></tr>
+                        <tr><td class="word-duiqi">腰围：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.yaoWei" />cm</td><td class="word-duiqi">臂围：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.biWei" />cm</td></tr>
+                        <tr><td class="word-duiqi">腿长：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.tuiChang" />cm</td><td class="word-duiqi">胸围：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.xiongWei" />cm</td></tr>
+                        <tr><td>大腿围：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.daTuiWei" />cm</td><td>小腿围：</td><td><input type="text" disabled="disabled" class="table-data" value="@specialConsult_model.user.xiaoTunWei" />cm</td></tr>
 
                     </table>
                     <div class="col-md-6" style="text-align:center;">
-                        <h3 style="margin-top:10px;">喜欢的风格：</h3>
-                        <div style="width:80%;margin-left:10%;"><img src="~/Images/UserImages/QuanShenZhao/20140203_112158.jpg" style="width:100%;" /></div>
+                        <h3>喜欢的风格：</h3>
+                        <div style="width:80%;margin-left:10%;">
+                            <img src="@specialConsult_model.likeStyleUrl" style="width:100%;" /></div>
                     </div>
-                    <div class="col-md-6" style="text-align:center;">
-                        <h3 style="margin-top:10px;">讨厌的风格：</h3>
-                        <div style="width: 80%; margin-left: 10%;"><img src="~/Images/UserImages/QuanShenZhao/20140203_112158.jpg" style="width:100%;" /></div>
+                    <div class="col-md-6" style="text-align: center;">
+                        <h3>不喜欢的风格：</h3>
+                        <div style="width:80%;margin-left:10%;">
+                            <img src="@specialConsult_model.dislikeStyleUrl" style="width:100%;" /></div>
                     </div>
-                    <div class="fgline" style=" margin-top: 25px; "></div><!--分割线-->
 
                 </div><!-- <div id="Question">-!end-->
-                <div id="theAnswerDiv">
+                <div class="fgline" style=" margin-top: 25px; "></div><!--分割线-->
+
+                <div id="theAnswerDiv"style="float:left;" >
                     <div><h3 style="margin:0;">专家回答</h3></div>
                     <div class="fgline" style="margin-bottom: 25px;"></div><!--分割线-->
                     <div id="theAnswer">
@@ -526,57 +571,87 @@
                             <img src="~/Images/Consult-ConsultDetails-unhappy.png" />
                             <p>专家尚未回答</p>
                         </div><!--当专家没回答时，默认显示此div，若专家有回答，则先清空<div id="theAnswerhtml">里面的内容，再引入HTML文件===========================================================================================================-->
-                    <div><!--假如这是静态页面-->
-                        专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答专家尚未回答
-                    </div>
+                        <div id="expertAnswerHtmlContent">
+                            <!--假如这是静态页面,这里面的内容有待删除，因为我已经实现了通过请求静态html渲染到此页面了================-->
+                            <p>
+                                <span style="font-size:16px;"> &nbsp; &nbsp; &nbsp; 哈</span><span style="font-size:14px;"><span style="font-size:16px;"></span><span style="font-size:16px;"></span></span><span style="font-size:16px;font-family:SimSun;">哈，问题很详细，首先我参加毕业照，我建议您</span><span style="color:#333333;font-family:SimSun;font-size:16px;line-height:24px;background-color:#FFFFFF;">穿休闲雅气的衣服。首先我推荐下面比较学院风的裙子，所以黑色很好看(*^__^*) 嘻嘻……</span>
+                            </p>
+                            <br />
+
+                            <p style="text-align:center;width:80%;margin-left:10%;"><img src="~/Images/ConsultDetails-tu1.png" style="width:100%;" /></p>
+                            <br />
+                            <p>
+                                <span style="color:#333333;font-family:SimSun;font-size:16px;line-height:24px;background-color:#FFFFFF;"><span><span style="font-size:16px;line-height:24px;background-color:#FFFFFF;">&nbsp; 搭配学院风长裙，</span></span><span style="font-family:SimSun;font-size:16px;color:#3C3C3C;line-height:24px;background-color:#FFFFFF;">韩版厚底松糕休闲鞋网状套脚洞洞运动鞋内增高女鞋是再适合不过了，一整套搭起来是不是各种小学妹的感觉O(∩_∩)O哈哈~</span></span>
+                            </p>
+                            <br />
+                            <p style="text-align:center;width:80%;margin-left:10%;">
+                                <img src="~/Images/ConsultDetails-tu3.png" style="width:100%;" />
+                            </p>
+                            <br />
+                            <p>
+                            <p>
+                                <span><span style="font-size:16px;line-height:24px;background-color:#FFFFFF;">&nbsp; &nbsp; &nbsp;或者</span></span><span style="font-family:SimSun;font-size:16px;color:#3C3C3C;line-height:24px;background-color:#FFFFFF;">2016夏新款方领公主裙韩版A字裙显瘦高腰3D印花连衣裙</span><span><span style="font-size:16px;line-height:24px;background-color:#FFFFFF;"><span style="font-family:SimSun;font-size:16px;">这种小洋裙也行，显气质，易搭配。名媛首选，保你在人群中仙气十足，脱颖而出~</span></span></span>
+                            </p>
+                            <br />
+                            <p style="text-align:center;width:80%;margin-left:10%;">
+                                <img src="~/Images/ConsultDetails-tu2.png" style="width:100%;" />
+                            </p>
+                            <br />
+                            <p>
+                                <span><span style="font-size:16px;line-height:24px;background-color:#FFFFFF;"><span style="font-family:SimSun;font-size:16px;">&nbsp; 名媛款公主裙最好配了，只要找比较淑女款的单鞋就可以穿了，我建议是女孩子穿裙子需要配下下有点跟的鞋子，那样能让你更加自信优雅。</span></span></span>
+                            </p>
+                            <br />
+                            <p style="text-align:center;width:80%;margin-left:10%;">
+                                <img src="~/Images/ConsultDetails-tu4.png" style="width:100%;" />
+                            </p>
+                            <br />
+                            <p>
+                                <br />
+                            </p>
+                            <p>
+                                <span style="font-family:SimSun;font-size:16px;color:#3C3C3C;line-height:1.5;background-color:#FFFFFF;">&nbsp; 名媛夏装新款女装雪纺荷叶袖上衣+阔腿短裤两件套时尚套装是今年亮眼搭配，<span style="color:#3C3C3C;font-family:SimSun;font-size:16px;line-height:24px;background-color:#FFFFFF;">雪纺荷叶袖上衣<span style="color:#3C3C3C;font-family:SimSun;font-size:16px;line-height:24px;background-color:#FFFFFF;">+阔腿短裤</span>不挑身材穿</span>，不管胖瘦都能穿。穿上气质十足。</span>
+                            </p>
+                            <br />
+                            <p style="text-align:center;width:80%;margin-left:10%;">
+                                <img src="~/Images/ConsultDetails-tu6.png" style="width:100%;" />
+                            </p>
+                            <br />
+                            <p>
+                                <span><span style="font-size:16px;line-height:24px;background-color:#FFFFFF;"><span style="font-family:SimSun;font-size:16px;">&nbsp; 不用说，这款衣服肯定是最好搭的，不管是淑女风的单鞋，还是白领气质的PU鞋，还是高跟鞋，都能百搭，简单一点的运动鞋或者板鞋也是可以的，因为是拍毕业照，比较正式还有可能要走比较多路，所以我还是建议有一点点跟的气质单鞋啦啦啦哈哈~</span></span></span>
+                            </p>
+                            <br />
+                            <p style="text-align:center;width:80%;margin-left:10%;">
+                                <img src="~/Images/ConsultDetails-tu5.png" style="width:100%;" />
+                            </p>
+                            <br />
+
+
+                        </div>
                     </div><!--存放专家回答静态页面的地方-->
                     <div id="theLinks"><!--存放专家给的衣服的链接=====================================================================================================================如果没有回答，则此div为空，若有回答，则此div里面的内容会随着专家提供链接的多少而创建链接-->
-                    <table>
-                        <tr><td><span>衣服</span></td><td><a href="">http://localhost:55084/Consult/ConsultDetails</a></td></tr>
-                        <tr><td><span>衣服</span></td><td><a href="">http://localhost:55084/Consult/ConsultDetails</a></td></tr>
-                        <tr><td><span>衣服</span></td><td><a href="">http://localhost:55084/Consult/ConsultDetails</a></td></tr>
-                        <tr><td><span>衣服</span></td><td><a href="">http://localhost:55084/Consult/ConsultDetails</a></td></tr>
-                    </table>
-
-                    
-                    </div><!--<div id="theLinks">end-->
+                    <div style="font-weight:bold;color:gray;margin-right:5px;">服饰购买链接：</div>
+                        <div id="answerClothHtml"></div>@*这里是购买衣服的链接，id为answerClothHtml，数据用js从数据库获取购买链接再渲染*@
+</div><!--<div id="theLinks">end-->
 
                 </div><!--<div id="theAnswerDiv">end-->
                 <div id="commentDiv">
-                    <div class="op_img" id="op_cz">
-                        <div id="guanzhu_0" onclick="guanzhu(this.id);"><img src="~/Images/Topic-Home-plus.png" id="gz_img_0" /><div class="data_op_n" id="gz_0">关注</div></div>
 
-                        <div id="zkpl_0" class="data_op_xx" onclick="xs_pl(this.id)">
-                            <img src="~/Images/Topic-Home-pinglun.png" /><div class="data_op_n" id="pl_0">1 条评论</div>
-                            <input type="hidden" id="pinglunHidden_0" value="0" />
+                    <div id="comments_kuang_0" class="plk">
+                        <div id="TheCommentPingLun">
+                            <div id="tjpl_simplei"></div>  <!--创建评论产生的地方-->
+
+                            <hr style="border:none;border-top:1px solid #ebe4e4;width:100%;" />
+
+                            <div class="plk_z">
+                                <input id="pl_text_simplei" type="text" placeholder="写下你的评论..." class="pinglun_text" onclick="xs_pl_btn(this.id)" />
+                                <div id="pl_op_simplei" class="pl_op yc">
+                                    <span class="qx_comment"><a onclick="yc_pl_btn(this.id)" id="qx_btn_simplei">取消</a></span>
+                                    <span><input id="pl_btn_simplei" type="button" value="评论" class="pl_btn" onclick="cj_pl(this.id)" /></span>
+                                </div>
+                            </div>
                         </div>
-                            <div id="thx_0" class="data_op_xx" onclick="thx(this.id)">
-                                <img src="~/Images/Topic-Home-ganxie.png" /><div class="data_op_n" id="ganxie_0">感谢</div>
-                            </div>
-
-                            <div class="data_op_xx" onclick="save(this.id)" id="save_0">
-                                <img src="~/Images/Topic-Home-save.png" /><div class="data_op_n" id="save_val_0">收藏</div>
-                            </div>
-                            <div class="data_op_xx">
-                                <img src="~/Images/Topic-Home-fenxiang.png" /><div class="data_op_n">分享</div>
-                            </div>
-                            <div class="data_op_xx">
-                                <img src="~/Images/Topic-Home-dian.png" /><div class="data_op_n">举报</div>
-                            </div>
-
-                        <div class="data_op_xx">
-                            <img src="~/Images/Topic-Home-dian.png" /><div class="data_op_n">保留权利</div>
-                        </div>
-                        <div id="xs_shouqi_0" class="data_op_xx data_op_shouqi">
-                            <img src="~/Images/Topic-Home-retract.png" />
-                            <div id="shouqi_0" class="data_op_n" onclick="shouqi(this.id)">收起</div>
-                        </div>
-
                     </div>
-
-                    <div id="comments_kuang_0" class="yc plk"></div>
                 </div><!--<div id="commentDiv">end-->
-                <div class="fgline"></div><!--分割线-->
                 
 
 
@@ -678,27 +753,7 @@
             </div>
             <div id="huifu-pl-simplei-simplej"></div><!--回复评论产生的地方-->
             <div id="plk-simplei-simplej"></div>     <!--产生回复评论框的地方-->
-
-
         </div>
-
     </div>
     <hr class="pl_fgx" />
-
-
-
-</div>
-<div id="TheCommentPingLun" style="display:none;">
-    <div id="tjpl_simplei"></div>  <!--创建评论产生的地方-->
-
-    <hr style="border:none;border-top:1px solid #ebe4e4;width:100%;" />
-    <div class="page" id="fenye_div"></div>
-
-    <div class="plk_z">
-        <input id="pl_text_simplei" type="text" placeholder="写下你的评论..." class="pinglun_text" onclick="xs_pl_btn(this.id)" />
-        <div id="pl_op_simplei" class="pl_op yc">
-            <span class="qx_comment"><a onclick="yc_pl_btn(this.id)" id="qx_btn_simplei">取消</a></span>
-            <span><input id="pl_btn_simplei" type="button" value="评论" class="pl_btn" onclick="cj_pl(this.id)" /></span>
-        </div>
-    </div>
 </div>

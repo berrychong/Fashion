@@ -94,6 +94,42 @@ namespace Fashion.Code.DAL
         }
 
 
+
+
+        /// <summary>
+        /// 通过用户名获取某个用户userId的主贴帖子
+        /// 这次不用查询出全部的数据，只需查询一部分数据，因为不是用于详情内容，而是用于遍历
+        /// 原贴帖子id  标题 内容的前200字符  帖子的第一张图片 日期
+        /// 返回post_modelList;
+        /// </summary>
+        /// <param name="userId">用户id</param>       
+        /// <returns></returns>
+        public List<Post_model> GetShortPostData(int userId)
+        {
+            string sqlStr = @"select Post_Id as id,Post_Caption as caption,Post_Content content,Post_Date as [datetime],
+                                                   PostPhotoOne.photoUrl  from tb_Post left join 
+                                                      (select * from 
+                                                            (select PostPhoto_PostId,PostPhoto_PhotoUrl as photoUrl,
+                                                             ROW_NUMBER()over(partition by PostPhoto_PostId order by PostPhoto_PostId) as new_index
+                                                            from tb_PostPhoto where PostPhoto_PostType=1) as PostPhotoAll  where new_index=1)
+                                                     AS PostPhotoOne on tb_Post.Post_Id=PostPhotoOne.PostPhoto_PostId  
+                                            WHERE   Post_SenderId=@userId";
+            SqlParameter[] parameters = new SqlParameter[] { 
+                new SqlParameter("@userId",userId)
+            };
+            DataTable dataTable = SqlHelper.ExecuteDataTable(sqlStr, parameters);
+            List<Post_model> post_modelList = new List<Post_model>();
+            foreach (DataRow row in dataTable.Rows)
+            {
+                post_modelList.Add(ToShortModel(row));
+            }
+            return post_modelList;
+        }
+
+
+
+
+
         /// <summary>
         /// 获取全部帖子数据
         /// </summary>
@@ -127,7 +163,26 @@ namespace Fashion.Code.DAL
             post_model = ToModel(dataTable.Rows[0]);
             return post_model;
         }
+
         
+        /// <summary>
+        /// 将一条数据转化为Post_model数据
+        /// 原贴帖子id  标题 内容的前200字符  帖子的第一张图片 日期
+        /// </summary>
+        /// <param name="row"></param>
+        /// <returns></returns>
+        public Post_model ToShortModel(DataRow row)
+        {
+            Post_model post_model = new Post_model();
+            post_model.postId = (int)row["id"];
+            post_model.postCaption = row["caption"].ToString();
+            post_model.postContent = row["content"].ToString();
+            post_model.firstPostPhotoUrl = row["photoUrl"].ToString();
+            post_model.postDate = (DateTime)row["datetime"];
+            return post_model;
+        }
+
+
         /// <summary>
         /// 将一条数据转化为Post_model数据
         /// </summary>
@@ -143,6 +198,7 @@ namespace Fashion.Code.DAL
             post_model.postId = (int)row["id"];
             post_model.postCaption = row["caption"].ToString();
             post_model.postContent = row["content"].ToString();
+            post_model.firstPostPhotoUrl = row["PostPhoto_PhotoUrl"].ToString();
             post_model.postDate = (DateTime)row["datetime"];
             post_model.postHtmlUrl = row["htmlUrl"].ToString();
             post_model.postSupportCount = (int)row["supportCount"];
@@ -202,10 +258,10 @@ namespace Fashion.Code.DAL
         /// 编号从tb_User里面拿，有空在写
         /// 插入成功返回1
         /// </summary>
-        /// <param name="caption"></param>
-        /// <param name="content"></param>
-        /// <param name="postsender"></param>
-        /// <param name="themeId"></param>
+        /// <param name="caption">标题</param>
+        /// <param name="content">发帖的内容的前200字符</param>
+        /// <param name="postsender">发帖者</param>
+        /// <param name="themeId">板块：如发型，裤子等</param>
         /// <returns></returns>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
         public int insertCaption(string caption, string content, int postsenderId, int themeId, string staticHtmlPath, DateTime datetime)
         {

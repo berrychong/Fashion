@@ -2,6 +2,7 @@
 using Fashion.Models;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Web;
 
@@ -9,6 +10,32 @@ namespace Fashion.Code.BLL
 {
     public class User_bll
     {
+
+
+
+        /// <summary>
+        /// 传递一个userName参数使用户感谢+1
+        /// </summary>
+        /// <param name="userName"></param>
+        /// <returns></returns>
+        public int GiveUserName(string userName,string Num)
+        {
+
+            User_dal user_dal = new User_dal();
+            if ((int)user_dal.UpdateStarCount(userName,Num) == 1)
+                return 1;
+            else
+                return 0;
+
+        }
+
+
+
+
+
+
+
+
           /// <summary>
         /// 通过用户名查询该用户的ID，
         /// 成功返回1
@@ -37,8 +64,17 @@ namespace Fashion.Code.BLL
         public User_model GetUserDataConsult(string userName)
         {
             User_dal user_dal = new User_dal();
-            User_model user_model=user_dal.GetUserDataConsult(userName);
-            DateTime today = new DateTime(2016, 4, 18);//今天日期
+            User_model user_model = new User_model();
+            try
+            {
+                user_model = user_dal.GetUserDataConsult(userName);
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.ToString());
+            }
+
+            DateTime today = DateTime.Now;//今天日期
             DateTime birthDate = user_model.birthDate;//出生年月日
             int age = today.Year - birthDate.Year;//年龄
             if (birthDate > today.AddYears(-age))//还未生日，年龄减去1
@@ -59,5 +95,42 @@ namespace Fashion.Code.BLL
             expertUserConsult_modelList = user_dal.GetExpertConsult();
             return expertUserConsult_modelList;
         }
+
+        /// <summary>
+        /// 通过用户名查找用户的个性签名
+        /// </summary>
+        /// <param name="userName"></param>
+        /// <returns></returns>
+        public string GetSignature(string userName)
+        {
+            User_dal user_dal=new User_dal();
+            object objSignature = user_dal.GetSignature(userName);
+            if (objSignature == null || objSignature == System.DBNull.Value)
+            { 
+                ///
+            }
+            return objSignature.ToString();
+        }
+
+
+        /// <summary>
+        /// 根据用户的userId 获取用户的 特定咨询数 提问数 回答数 收藏 关注数 粉丝数 获赞数
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <returns></returns>
+        public CountUser_model GetCountUser(int userId)
+        {
+            User_dal user_dal = new User_dal();
+            CountUser_model countUser_model = new CountUser_model();
+            try {
+                countUser_model=user_dal.GetCountUser(userId);
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.ToString());
+            }
+            return countUser_model;
+        }
+
     }
 }
